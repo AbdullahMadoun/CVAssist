@@ -1,0 +1,15 @@
+Bundled browser-side LaTeX preview assets copied from:
+https://github.com/SwiftLaTeX/SwiftLaTeX/releases/tag/v20022022
+
+Included files:
+- PdfTeXEngine.js
+- XeTeXEngine.js
+- DvipdfmxEngine.js
+- swiftlatexpdftex.js
+- swiftlatexpdftex.wasm
+- swiftlatexxetex.js
+- swiftlatexxetex.wasm
+- swiftlatexdvipdfm.js
+- swiftlatexdvipdfm.wasm
+
+The upstream engine files include their own license headers.

@@ -1,0 +1,58 @@
+{
+  "name": "cv-customizer",
+  "version": "1.0.0",
+  "description": "AI-powered LaTeX CV tailoring tool with OpenAI integration",
+  "author": "CV Customizer",
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "set PORT=3001 && node server/server.js",
+    "rebuild:native": "electron-rebuild -f -w better-sqlite3",
+    "test": "node scripts/smoke-test.js",
+    "test:openrouter": "node scripts/openrouter-smoke.js",
+    "test:openai-live": "node scripts/openai-live-smoke.js",
+    "test:swiftlatex-browser": "electron scripts/swiftlatex-browser-smoke.js",
+    "test:prompts": "node scripts/test-prompts.js parse-job",
+    "eval:prompts": "node scripts/prompt-eval.js",
+    "desktop:dev": "electron .",
+    "desktop:dist": "node scripts/desktop-dist.js"
+  },
+  "dependencies": {
+    "@openrouter/sdk": "^0.9.11",
+    "better-sqlite3": "^11.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^8.0.0",
+    "natural": "^6.12.0",
+    "openai": "^4.70.0"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "com.cvcustomizer.app",
+    "productName": "CV Customizer",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "desktop/**/*",
+      "public/**/*",
+      "server/**/*",
+      "scripts/**/*",
+      "data/**/*",
+      "package.json",
+      "package-lock.json"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "artifactName": "CV-Customizer-${version}.${ext}"
+    }
+  }
+}

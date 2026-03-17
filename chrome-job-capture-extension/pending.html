@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pending Jobs</title>
+  <link rel="stylesheet" href="pending.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Desktop-First Extension</p>
+        <h1>Pending Jobs Queue</h1>
+      </div>
+      <div class="topbar-actions">
+        <button id="newJobBtn" class="ghost-btn" type="button">New Job</button>
+        <button id="exportBtn" class="ghost-btn" type="button">Export JSON</button>
+      </div>
+    </header>
+
+    <section class="dashboard-strip">
+      <div class="metric-card">
+        <span class="metric-label">Total</span>
+        <strong id="metricTotal">0</strong>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Needs Review</span>
+        <strong id="metricReview">0</strong>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Pending</span>
+        <strong id="metricPending">0</strong>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Applied</span>
+        <strong id="metricApplied">0</strong>
+      </div>
+    </section>
+
+    <section class="sync-strip">
+      <div class="sync-copy">
+        <p class="eyebrow">App Bridge</p>
+        <p id="syncStatus" class="sync-text">Checking desktop app first...</p>
+      </div>
+      <div class="topbar-actions">
+        <label class="bridge-target-inline">
+          <span>Target</span>
+          <select id="bridgeTargetSelect">
+            <option value="auto">Auto (Prefer Desktop)</option>
+            <option value="desktop">Desktop (3210)</option>
+            <option value="dev">Dev (3001)</option>
+          </select>
+        </label>
+        <button id="refreshBridgeBtn" class="ghost-btn" type="button">Refresh</button>
+        <button id="sendSelectedBtn" class="ghost-btn" type="button" disabled>Send Selected</button>
+        <button id="sendReadyBtn" class="primary-btn" type="button" disabled>Send Ready Jobs</button>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <aside class="list-panel">
+        <div class="toolbar">
+          <input id="searchInput" type="search" placeholder="Search company or role">
+          <select id="statusFilter">
+            <option value="">All statuses</option>
+            <option value="needs_review">Needs Review</option>
+            <option value="pending">Pending</option>
+            <option value="ready">Ready</option>
+            <option value="tailored">Tailored</option>
+            <option value="applied">Applied</option>
+          </select>
+        </div>
+        <div id="jobList" class="job-list"></div>
+      </aside>
+
+      <section class="editor-panel">
+        <div id="emptyEditor" class="empty-editor">
+          <h2>No job selected</h2>
+          <p>Select a captured job or create a new one.</p>
+        </div>
+
+        <form id="editorForm" class="hidden">
+          <div class="editor-header">
+            <div>
+              <p class="eyebrow">Editable Details</p>
+              <h2 id="editorTitle">Job</h2>
+            </div>
+            <span id="editorConfidence" class="badge neutral">Review</span>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>Role</span>
+              <input id="editTitle" type="text">
+            </label>
+            <label class="field">
+              <span>Company</span>
+              <input id="editCompany" type="text">
+            </label>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>Location</span>
+              <input id="editLocation" type="text">
+            </label>
+            <label class="field">
+              <span>Status</span>
+              <select id="editStatus">
+                <option value="needs_review">Needs Review</option>
+                <option value="pending">Pending</option>
+                <option value="ready">Ready</option>
+                <option value="tailored">Tailored</option>
+                <option value="applied">Applied</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Job URL</span>
+            <input id="editUrl" type="url">
+          </label>
+
+          <label class="field">
+            <span>Job Info</span>
+            <textarea id="editJobInfo" rows="16"></textarea>
+          </label>
+
+          <div class="button-row">
+            <button id="saveBtn" class="primary-btn" type="submit">Save Changes</button>
+            <button id="copySelectedBtn" class="ghost-btn" type="button">Copy JSON</button>
+            <button id="openSourceBtn" class="ghost-btn" type="button">Open Source</button>
+            <button id="deleteBtn" class="danger-btn" type="button">Delete</button>
+          </div>
+
+          <p id="editorNotice" class="notice"></p>
+        </form>
+      </section>
+    </section>
+  </div>
+
+  <script src="lib/job-store.js"></script>
+  <script src="lib/app-bridge.js"></script>
+  <script src="pending.js"></script>
+</body>
+</html>
+

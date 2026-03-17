@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SwiftLaTeX Smoke</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: monospace; padding: 20px; background: #10141c; color: #e6edf3; }
+    pre { white-space: pre-wrap; font-size: 0.82em; line-height: 1.55; }
+    #status { font-size: 1.1em; font-weight: bold; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h1>SwiftLaTeX Smoke</h1>
+  <div id="status">BOOTING</div>
+  <pre id="log"></pre>
+  <script src="/vendor/swiftlatex/PdfTeXEngine.js"></script>
+  <script src="/vendor/swiftlatex/XeTeXEngine.js"></script>
+  <script src="/vendor/swiftlatex/DvipdfmxEngine.js"></script>
+  <script>
+    (async function () {
+      const statusEl = document.getElementById('status');
+      const logEl = document.getElementById('log');
+      const results = [];
+      const lines = [];
+
+      function setStatus(value) {
+        statusEl.textContent = value;
+      }
+
+      function log(msg) {
+        const ts = ((Date.now() - startedAt) / 1000).toFixed(1);
+        const line = `[+${ts}s] ${msg}`;
+        lines.push(line);
+        logEl.textContent = lines.join('\n');
+        console.log(line);
+      }
+
+      const startedAt = Date.now();
+
+      function toBase64(bytes) {
+        let binary = '';
+        const input = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
+        const chunkSize = 0x8000;
+        for (let offset = 0; offset < input.length; offset += chunkSize) {
+          binary += String.fromCharCode.apply(null, input.subarray(offset, offset + chunkSize));
+        }
+        return btoa(binary);
+      }
+
+      function withTimeout(promise, ms, label) {
+        return Promise.race([
+          promise,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(`Timed out after ${ms / 1000}s: ${label}`)), ms)
+          ),
+        ]);
+      }
+
+      async function ensureFormat(engine, kind, assetPath) {
+        log(`ensureFormat ${kind}: checking if format exists at ${assetPath}`);
+        const existing = await fetch(`/swiftlatex-assets/${kind}/${assetPath}`, { method: 'HEAD' }).catch(() => null);
+        if (existing && existing.ok) {
+          log(`ensureFormat ${kind}: format already cached — skipping generation`);
+          return;
+        }
+
+        log(`ensureFormat ${kind}: format not cached — starting compileFormat() (120s timeout)`);
+        setStatus(`PRIMING:${kind}`);
+
+        const formatBytes = await withTimeout(
+          engine.compileFormat(),
+          120_000,
+          `${kind} compileFormat()`
+        );
+
+        const byteLen = formatBytes ? (formatBytes.byteLength ?? formatBytes.length ?? 0) : 0;
+        log(`ensureFormat ${kind}: compileFormat() returned ${byteLen} bytes`);
+        if (!byteLen) throw new Error(`${kind} compileFormat() returned empty bytes`);
+
+        log(`ensureFormat ${kind}: posting format to cache`);
+        const response = await fetch(`/swiftlatex-assets/${kind}/prime-format`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            asset_path: assetPath,
+            data_base64: toBase64(formatBytes),
+          }),
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.error || `Could not cache ${kind} format`);
+        }
+        const cacheResult = await response.json().catch(() => ({}));
+        log(`ensureFormat ${kind}: cached OK — server reports ${cacheResult.bytes ?? '?'} bytes at ${cacheResult.cache_path ?? '?'}`);
+      }
+
+      async function createPdfTeX() {
+        log('createPdfTeX: loading engine');
+        const engine = new PdfTeXEngine();
+        await engine.loadEngine();
+        engine.setTexliveEndpoint('/swiftlatex-assets/');
+        log('createPdfTeX: engine ready');
+        return engine;
+      }
+
+      async function createXeTeX() {
+        log('createXeTeX: loading engine');
+        const engine = new XeTeXEngine();
+        await engine.loadEngine();
+        engine.setTexliveEndpoint('/swiftlatex-assets/');
+        log('createXeTeX: engine ready');
+        return engine;
+      }
+
+      async function createDvipdfmx() {
+        log('createDvipdfmx: loading engine');
+        const engine = new DvipdfmxEngine();
+        await engine.loadEngine();
+        engine.setTexliveEndpoint('/swiftlatex-assets/');
+        log('createDvipdfmx: engine ready');
+        return engine;
+      }
+
+      // ── pdftex ─────────────────────────────────────────────────────────
+      try {
+        log('pdftex: starting');
+        let pdftex = await createPdfTeX();
+        await ensureFormat(pdftex, 'pdftex', '10/swiftlatexpdftex.fmt');
+        log('pdftex: closing priming worker');
+        pdftex.closeWorker();
+
+        log('pdftex: creating fresh engine for compile');
+        pdftex = await createPdfTeX();
+        pdftex.flushCache();
+        pdftex.writeMemFSFile('main.tex', '\\documentclass{article}\\begin{document}PDFTEX OK\\end{document}');
+        pdftex.setEngineMainFile('main.tex');
+
+        log('pdftex: compiling main.tex');
+        setStatus('COMPILING:pdftex');
+        const pdfResult = await withTimeout(pdftex.compileLaTeX(), 60_000, 'pdftex compileLaTeX()');
+        if (pdfResult.status !== 0 || !pdfResult.pdf) {
+          throw new Error((pdfResult.log || 'pdfTeX compile failed').slice(-400));
+        }
+        results.push(`pdftex:ok:${pdfResult.pdf.length}`);
+        log(`pdftex: PASS — ${pdfResult.pdf.length} bytes`);
+        pdftex.closeWorker();
+      } catch (error) {
+        results.push(`pdftex:fail:${error.message}`);
+        log(`pdftex: FAIL — ${error.message}`);
+      }
+
+      const allPass = results.every((entry) => entry.indexOf(':ok:') !== -1);
+      const finalStatus = allPass ? 'PASS' : 'FAIL';
+      setStatus(finalStatus);
+      log(`done — ${finalStatus}: ${results.join(' | ')}`);
+      logEl.textContent = lines.join('\n');
+
+    })().catch((error) => {
+      document.getElementById('status').textContent = 'FAIL';
+      document.getElementById('log').textContent = `fatal: ${error.message || String(error)}`;
+      console.error('SwiftLaTeX smoke fatal:', error.stack || error.message || String(error));
+    });
+  </script>
+</body>
+</html>
+

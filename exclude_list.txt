@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.desktop-build
+desktop-release
+tmp
+data
+cv_customizer.db
+cv_customizer.db-shm
+cv_customizer.db-wal

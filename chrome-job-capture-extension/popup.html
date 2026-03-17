@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CV Customizer Job Capture</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="popup-shell">
+    <header class="popup-header">
+      <div>
+        <p class="eyebrow">Desktop-First Capture</p>
+        <h1>Desktop Intake</h1>
+      </div>
+      <button id="rescrapeBtn" class="ghost-btn" type="button">Rescrape</button>
+    </header>
+
+    <section class="connection-card">
+      <div class="connection-copy">
+        <p class="eyebrow">App Bridge</p>
+        <p id="bridgeStatus" class="connection-text">Checking desktop app first...</p>
+        <label class="bridge-target">
+          <span>Target</span>
+          <select id="bridgeTargetSelect">
+            <option value="auto">Auto (Prefer Desktop)</option>
+            <option value="desktop">Desktop (3210)</option>
+            <option value="dev">Dev (3001)</option>
+          </select>
+        </label>
+      </div>
+      <button id="refreshBridgeBtn" class="ghost-btn" type="button">Refresh</button>
+    </section>
+
+    <section id="loadingState" class="state-card">
+      <div class="spinner"></div>
+      <p>Scraping the current page...</p>
+    </section>
+
+    <section id="errorState" class="state-card hidden error-card">
+      <h2>Could not capture job data</h2>
+      <p id="errorMessage"></p>
+      <div class="button-row">
+        <button id="retryBtn" class="primary-btn" type="button">Try Again</button>
+        <button id="openPendingBtnError" class="ghost-btn" type="button">Open Pending</button>
+      </div>
+    </section>
+
+    <form id="jobForm" class="hidden">
+      <section class="meta-strip">
+        <span id="siteBadge" class="badge neutral">Site</span>
+        <span id="confidenceBadge" class="badge neutral">Needs Review</span>
+      </section>
+
+      <label class="field">
+        <span>Role</span>
+        <input id="roleTitle" type="text" autocomplete="off">
+      </label>
+
+      <div class="field-grid">
+        <label class="field">
+          <span>Company</span>
+          <input id="company" type="text" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>Location</span>
+          <input id="location" type="text" autocomplete="off">
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Job URL / Source Link</span>
+        <input id="jobUrl" type="url" autocomplete="off">
+      </label>
+
+      <label class="field">
+        <span>Job Info</span>
+        <textarea id="jobInfo" rows="14"></textarea>
+      </label>
+
+      <div class="button-row stacked">
+        <div class="button-row">
+          <button id="addPendingBtn" class="primary-btn" type="submit">Add to Pending</button>
+          <button id="sendToAppBtn" class="ghost-btn" type="button" disabled>Send to CV Customizer</button>
+        </div>
+        <div class="button-row">
+          <button id="copyJsonBtn" class="ghost-btn" type="button">Copy JSON</button>
+          <button id="openPendingBtn" class="ghost-btn" type="button">Pending Queue</button>
+        </div>
+      </div>
+
+      <p id="formNotice" class="notice"></p>
+    </form>
+  </main>
+
+  <script src="lib/job-store.js"></script>
+  <script src="lib/app-bridge.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
+

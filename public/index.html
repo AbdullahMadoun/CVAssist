@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AI-powered LaTeX CV tailoring tool — tailor your resume to any job in seconds">
+  <title>CV Customizer — AI Resume Tailoring</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- ═══ Top Bar ═══ -->
+  <header id="topbar">
+    <div class="topbar-left">
+      <div class="logo"><span class="logo-icon">◆</span><span class="logo-text">CV Customizer</span></div>
+      <div class="topbar-context">
+        <div class="topbar-context-title">Web Assistant</div>
+        <div class="topbar-context-copy">Tailor, review, and export LaTeX source without local TeX dependencies.</div>
+      </div>
+
+    </div>
+    <div class="topbar-center">
+      <nav class="topbar-nav" id="mainNav" aria-label="Workspace navigation">
+        <div class="topbar-nav-group" data-group="primary">
+          <span class="topbar-nav-label">Main</span>
+          <button class="nav-btn active" data-view="dashboard">Home</button>
+          <button class="nav-btn" data-view="tailor">Tailor</button>
+          <button class="nav-btn" data-view="history">Runs</button>
+        </div>
+        <div class="topbar-nav-group" data-group="support">
+          <span class="topbar-nav-label">Library</span>
+          <button class="nav-btn" data-view="profiles">Profiles</button>
+          <button class="nav-btn" data-view="vault">Vault</button>
+          <button class="nav-btn" data-view="genres">Genres</button>
+          <button class="nav-btn" data-view="interviewtool">Interview</button>
+        </div>
+      </nav>
+    </div>
+    <div class="topbar-right">
+      <button class="icon-btn" id="settingsBtn" title="API Settings">⚙</button>
+    </div>
+  </header>
+
+  <!-- ═══ Settings Modal ═══ -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button class="modal-close" id="closeSettings">✕</button>
+      </div>
+      <!-- Tab bar -->
+      <div class="settings-tabs">
+        <button class="settings-tab active" data-tab="api">API &amp; Model</button>
+        <button class="settings-tab" data-tab="params">Parameters</button>
+        <button class="settings-tab" data-tab="prompts">System Prompts</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- ── Tab: API ── -->
+        <div class="settings-tab-pane active" id="settings-tab-api">
+          <label class="field-label">API Key</label>
+          <div class="input-group">
+            <input type="password" id="apiKeyInput" placeholder="sk-or-... (OpenRouter preferred)" class="input" autocomplete="off">
+            <button class="btn btn-sm" id="toggleKeyVis">Show</button>
+          </div>
+          <p class="field-hint">Stored in your browser only. OpenRouter is the default path; OpenAI still works if you provide that key instead.</p>
+          <label class="field-label">Model</label>
+          <select id="modelSelect" class="select">
+            <optgroup label="OpenRouter Recommended">
+              <option value="deepseek/deepseek-v3.2" selected>DeepSeek V3.2 (Default budget)</option>
+              <option value="google/gemini-2.5-flash">Gemini 2.5 Flash (Higher quality)</option>
+              <option value="anthropic/claude-3.5-haiku">Claude 3.5 Haiku (Sharper writing)</option>
+              <option value="openai/gpt-4o-mini">OpenRouter: GPT-4o Mini</option>
+            </optgroup>
+            <optgroup label="OpenRouter Free Fallback">
+              <option value="openrouter/free">OpenRouter Free Router</option>
+              <option value="stepfun/step-3.5-flash:free">Step 3.5 Flash (free)</option>
+              <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air (free)</option>
+            </optgroup>
+            <optgroup label="OpenAI Direct">
+              <option value="gpt-4o-mini">OpenAI: GPT-4o Mini</option>
+              <option value="gpt-4o">OpenAI: GPT-4o</option>
+              <option value="gpt-4-turbo">OpenAI: GPT-4 Turbo</option>
+            </optgroup>
+            <option value="__custom__">Custom Model Id</option>
+          </select>
+          <input id="customModelInput" class="input" placeholder="Optional custom model id, e.g. deepseek/deepseek-v3.2 or provider/model:free">
+          <p class="field-hint" id="modelHint">Recommended default is DeepSeek V3.2 for budget CV runs. Gemini 2.5 Flash is the stronger step-up; Claude 3.5 Haiku is a writing-focused fallback.</p>
+          <div class="modal-actions">
+            <button class="btn btn-primary" id="saveApiKey">Save</button>
+            <button class="btn btn-ghost" id="clearApiKey">Clear</button>
+          </div>
+        </div>
+
+        <!-- ── Tab: Parameters ── -->
+        <div class="settings-tab-pane" id="settings-tab-params">
+          <p class="field-hint" style="margin-bottom:1rem">Tune per-stage LLM limits. Changes apply immediately to the running server session (reset on restart).</p>
+          <div class="params-grid" id="paramsGrid">
+            <!-- populated by JS -->
+            <div class="empty-state">Loading parameters…</div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-primary" id="saveParams">Apply Parameters</button>
+            <button class="btn btn-ghost" id="resetParams">Reset to Defaults</button>
+          </div>
+        </div>
+
+        <!-- ── Tab: Prompts ── -->
+        <div class="settings-tab-pane" id="settings-tab-prompts">
+          <p class="field-hint" style="margin-bottom:.75rem">Live system prompt editor. Changes take effect immediately — no restart needed. Overrides reset when the server restarts.</p>
+          <div class="prompt-selector-row">
+            <select class="select" id="promptKeySelect">
+              <option value="">— Select a prompt to edit —</option>
+              <option value="PARSE_JOB_SYSTEM">Stage 1 — Parse Job Requirements</option>
+              <option value="ANALYZE_ALIGNMENT_SYSTEM">Stage 2 — CV Alignment Analyzer</option>
+              <option value="REPLACE_SYSTEM">Stage 3 — Replacement Generator</option>
+              <option value="REVIEW_APPLIED_CV_SYSTEM">Stage 4 — Applied Draft Reviewer</option>
+              <option value="COVER_LETTER_SYSTEM">Cover Letter Generator</option>
+              <option value="INTERVIEW_PREP_SYSTEM">Interview Prep Strategist</option>
+              <option value="COMPANY_RESEARCH_SYSTEM">Company Research Analyst</option>
+              <option value="JOB_SUMMARY_SYSTEM">Job Description Summarizer</option>
+            </select>
+            <span class="prompt-override-badge" id="promptOverrideBadge" style="display:none">● Modified</span>
+          </div>
+          <div id="promptEditorShell" style="display:none;margin-top:.75rem;display:grid;gap:.6rem">
+            <textarea class="textarea prompt-editor-textarea" id="promptEditorTextarea" rows="18" spellcheck="false" placeholder="Select a prompt above to edit it…"></textarea>
+            <div class="modal-actions" style="margin-top:0">
+              <button class="btn btn-primary" id="savePrompt">Save Changes</button>
+              <button class="btn btn-ghost" id="resetPrompt">Reset to Default</button>
+              <span class="field-hint" id="promptSaveStatus" style="margin-left:auto;align-self:center"></span>
+            </div>
+          </div>
+          <div id="promptSelectHint" class="empty-state" style="padding:2rem 0">Select a prompt above to view and edit it.</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══ Main Content ═══ -->
+  <main id="app">
+
+    <!-- ── Home ── -->
+    <section class="view active" id="view-dashboard">
+      <div class="view-header"><h1>Home</h1><p class="subtitle">Build once, tailor many times.</p></div>
+      <div class="hero-banner" id="homeHero">
+        <div class="hero-banner-copy">
+          <div class="hero-banner-kicker">Next Best Step</div>
+          <h2 id="homeHeroTitle">Set up your first profile</h2>
+          <p id="homeHeroText">Add a base CV and a few reusable experiences so the app can make grounded suggestions.</p>
+        </div>
+        <button class="btn btn-primary" id="homeHeroCta">Go to Profiles</button>
+      </div>
+      <div class="stats-row" id="statsRow">
+        <div class="stat-card"><div class="stat-value" id="statVault">0</div><div class="stat-label">Vault Items</div></div>
+        <div class="stat-card"><div class="stat-value" id="statResumeReady">0</div><div class="stat-label">Resume-Ready</div></div>
+        <div class="stat-card"><div class="stat-value" id="statGenres">0</div><div class="stat-label">Genres</div></div>
+        <div class="stat-card"><div class="stat-value" id="statProfiles">0</div><div class="stat-label">Profiles</div></div>
+      </div>
+      <div class="home-grid">
+        <div class="section-card">
+          <div class="card-header"><h3>Reuse Health</h3></div>
+          <div class="card-body" id="reuseHealth"><p class="empty-state">Your reusable system health will appear here.</p></div>
+        </div>
+        <div class="section-card">
+          <div class="card-header"><h3>Momentum Strip</h3></div>
+          <div class="card-body" id="momentumStrip"><p class="empty-state">Runs, genres, and top vault items will build momentum here.</p></div>
+        </div>
+      </div>
+      <div class="home-grid">
+        <div class="section-card">
+          <div class="card-header"><h3>Runtime Clarity</h3></div>
+          <div class="card-body" id="runtimeClarity"><p class="empty-state">Runtime and bridge status will appear here.</p></div>
+        </div>
+        <div class="section-card">
+          <div class="card-header"><h3>Run Readiness</h3></div>
+          <div class="card-body" id="homeReadiness"><p class="empty-state">Readiness checks will appear here.</p></div>
+        </div>
+      </div>
+      <div class="section-card"><div class="card-header"><h3>Smart Next Actions</h3></div><div class="card-body" id="smartActions"><p class="empty-state">Your next best actions will show up here as you use the app.</p></div></div>
+      <div class="quick-actions">
+        <button class="btn btn-primary" onclick="navigate('tailor')">⚡ Tailor a Job</button>
+        <button class="btn btn-secondary" onclick="navigate('interviewtool')">Interview Tool</button>
+        <button class="btn btn-secondary" onclick="navigate('vault')">+ Capture Proof</button>
+        <button class="btn btn-ghost" onclick="navigate('genres')">◎ Create Genre</button>
+      </div>
+      <div class="section-card"><div class="card-header"><h3 id="recentSessionsHeading">Recent Tailored CVs</h3></div><div class="card-body" id="recentSessions"><p class="empty-state">No sessions yet. Create a profile and start tailoring!</p></div></div>
+    </section>
+
+    <!-- ── Quick Tailor ── -->
+    <section class="view" id="view-tailor">
+      <div class="view-header"><h1>Tailor</h1><p class="subtitle">Grounded tailoring with clear review before you reuse anything.</p></div>
+      <div class="tailor-grid">
+        <div class="tailor-col tailor-col-main">
+          <div class="section-card">
+            <div class="card-header"><h3>① Profile</h3></div>
+            <div class="card-body">
+              <select id="tailorProfile" class="select"><option value="">Loading...</option></select>
+              <button class="btn btn-sm btn-ghost" style="margin-top:0.4rem" onclick="navigate('profiles')">+ Create Profile</button>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="card-header"><h3>② Genre</h3></div>
+            <div class="card-body">
+              <select id="tailorGenre" class="select"><option value="">No genre selected</option></select>
+              <div class="divider-text">Recommended strategic lens</div>
+              <select id="tailorStrictness" class="select">
+                <option value="safe">Safe — facts only</option>
+                <option value="balanced" selected>Balanced — grounded rewrite</option>
+                <option value="strategic">Strategic — stronger framing</option>
+              </select>
+              <div class="divider-text">Rewrite Coverage</div>
+              <select id="tailorRewriteCoverage" class="select">
+                <option value="0.6">60% of bullets</option>
+                <option value="0.7" selected>70% of bullets</option>
+                <option value="0.8">80% of bullets</option>
+              </select>
+              <p class="field-hint">Controls how many resume bullets the rewrite stage tries to materially edit. Lower coverage is faster and cheaper while still focusing on the highest-value lines.</p>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="card-header"><h3>③ Job Description</h3></div>
+            <div class="card-body">
+              <div class="job-capture-banner" id="jobCaptureBanner">
+                <div class="job-capture-copy">
+                  <div class="job-capture-kicker">Live Job Inbox</div>
+                  <div class="job-capture-text" id="jobCaptureText">Captured jobs from the Chrome extension will appear here when the desktop app or local server is running.</div>
+                </div>
+                <div class="job-capture-actions">
+                  <span class="meta-pill" id="jobCaptureCount">0 imported</span>
+                  <button class="btn btn-sm btn-secondary" id="refreshTailorJobs" type="button">Refresh</button>
+                </div>
+              </div>
+              <select id="tailorJob" class="select"><option value="">— New job (fill below) —</option></select>
+              <div class="divider-text">or enter new</div>
+              <div class="form-row"><input id="newJobCompany" class="input" placeholder="Company"><input id="newJobTitle" class="input" placeholder="Title"></div>
+              <textarea id="newJobDesc" class="textarea" rows="5" placeholder="Paste the full job description..."></textarea>
+              <input id="newJobUrl" class="input" placeholder="Job URL (optional)">
+              <details class="import-json-panel">
+                <summary>Import extension JSON</summary>
+                <textarea id="jobImportJson" class="textarea" rows="4" placeholder="Paste one captured job object or the exported extension jobs array..."></textarea>
+                <button class="btn btn-sm btn-secondary" id="importJobsJsonBtn" type="button">Import Jobs JSON</button>
+              </details>
+            </div>
+          </div>
+        </div>
+        <div class="tailor-col tailor-col-side">
+          <div class="section-card glass-accent">
+            <div class="card-header"><h3>④ Run Workspace</h3></div>
+            <div class="card-body tailor-actions">
+              <button class="btn btn-primary btn-lg pulse-btn" id="runTailor" disabled><span class="btn-icon">⚡</span> Run Tailoring</button>
+              <p class="field-hint">Runs parse, alignment, replacement, and verification in one pass. The workspace below keeps the proof plan and batch queue visible while the desktop app works.</p>
+              <div class="tailor-preflight" id="tailorPreflight"><p class="empty-state">Select a profile, genre, and job to preview the run.</p></div>
+              <div class="pipeline-elapsed" id="pipelineElapsed" style="display:none">Elapsed: 0.0s</div>
+              <div class="pipeline-status" id="pipelineStatus" style="display:none">
+                <div class="pipeline-stage" data-stage="parse"><div class="stage-indicator"></div><span>Parsing requirements</span></div>
+                <div class="pipeline-stage" data-stage="analyze"><div class="stage-indicator"></div><span>Scoring alignment</span></div>
+                <div class="pipeline-stage" data-stage="replace"><div class="stage-indicator"></div><span>Generating replacements</span></div>
+                <div class="pipeline-stage" data-stage="verify"><div class="stage-indicator"></div><span>Verifying output</span></div>
+              </div>
+              <div class="tailor-batch-panel">
+                <div class="tailor-batch-header">
+                  <div>
+                    <div class="field-label">Batch Tailor Queue</div>
+                    <div class="field-hint">Select multiple saved jobs and prepare sessions one after another with ATS guidance preserved per run.</div>
+                  </div>
+                  <div class="tailor-batch-actions">
+                    <button class="btn btn-sm btn-ghost" id="selectImportedBatchJobs" type="button">Select Imported</button>
+                    <button class="btn btn-sm btn-ghost" id="clearBatchSelection" type="button">Clear</button>
+                  </div>
+                </div>
+                <div class="tailor-batch-toolbar">
+                  <span class="meta-pill" id="batchSelectionCount">0 selected</span>
+                  <select class="select batch-filter-select" id="batchJobFilter">
+                    <option value="untouched" selected>Untouched jobs</option>
+                    <option value="imported">Imported only</option>
+                    <option value="all">All saved jobs</option>
+                  </select>
+                  <button class="btn btn-secondary" id="runBatchTailor" type="button" disabled>Prepare Batch</button>
+                </div>
+                <div class="tailor-batch-list" id="batchJobList"><p class="empty-state">Save jobs to build a batch queue.</p></div>
+                <div class="tailor-batch-status" id="batchRunStatus"><p class="empty-state">No batch queue running.</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Interview Tool ── -->
+    <section class="view" id="view-interviewtool">
+      <div class="view-header"><h1>Interview</h1><p class="subtitle">Use any saved tailoring run as a standalone interview preparation tool.</p></div>
+      <div class="home-grid">
+        <div class="section-card">
+          <div class="card-header"><h3>Choose Run</h3></div>
+          <div class="card-body">
+            <label class="field-label" for="interviewSessionSelect">Saved tailoring run</label>
+            <select id="interviewSessionSelect" class="select">
+              <option value="">Loading runs...</option>
+            </select>
+            <div id="interviewSessionMeta" class="interview-session-meta"><p class="empty-state">Select a run to prepare targeted interview notes.</p></div>
+            <div class="header-actions" style="margin-top:0.9rem">
+              <button class="btn btn-sm btn-secondary" id="refreshInterviewSessions" type="button">Refresh</button>
+              <button class="btn btn-sm btn-ghost" id="openInterviewSessionResults" type="button">Open Full Results</button>
+            </div>
+          </div>
+        </div>
+        <div class="section-card">
+          <div class="card-header"><h3>Interview Intelligence</h3><div class="header-actions"><button class="btn btn-sm btn-primary" id="genInterviewStandalone">Generate</button></div></div>
+          <div class="card-body" id="interviewToolContent"><p class="empty-state">Choose a saved run, then generate interview prep and company research here.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Results ── -->
+    <section class="view" id="view-results">
+      <div class="view-header">
+        <div class="results-title-row">
+        <div><h1 id="resultsTitle">Results</h1><p class="subtitle" id="resultsSubtitle"></p></div>
+        <div class="results-actions">
+          <select id="sessionOutcome" class="select outcome-select" title="Application outcome">
+            <option value="">No Outcome</option>
+            <option value="applied">Applied</option>
+            <option value="interview">Interview</option>
+            <option value="offer">Offer</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <button class="btn btn-secondary" id="downloadTexBtn">⬇ Download .tex</button>
+
+          <button class="btn btn-secondary" id="downloadTexBtn">⬇ Download .tex</button>
+          <button class="btn btn-ghost" id="backToDash">← Back</button>
+        </div>
+      </div>
+      </div>
+
+      <div class="results-shell">
+        <div class="results-overview">
+          <div class="score-hero" id="scoreHero">
+            <div class="score-ring"><svg viewBox="0 0 120 120"><circle class="score-ring-bg" cx="60" cy="60" r="52"/><circle class="score-ring-fill" cx="60" cy="60" r="52" id="scoreRingFill"/></svg><div class="score-number" id="scoreNumber">—</div></div>
+            <div class="score-meta"><div class="score-label">Alignment Score</div><div class="score-verdict" id="scoreVerdict"></div><div class="score-improvement" id="scoreImprovement"></div><div class="score-metrics" id="scoreMetrics"></div></div>
+          </div>
+          <div class="recommendation-banner" id="resultsRecommendation">
+            <div>
+              <div class="recommendation-kicker">Recommended Action</div>
+              <div class="recommendation-text" id="resultsRecommendationText">Review the safest high-impact changes first.</div>
+            </div>
+            <div class="recommendation-actions">
+              <button class="btn btn-secondary" id="saveAcceptedToVault">Save Accepted to Vault</button>
+            </div>
+            <div class="trust-strip">
+              <span class="trust-pill verified">Verified</span>
+              <span class="trust-pill grounded">Grounded</span>
+              <span class="trust-pill review">Needs Review</span>
+              <span class="trust-pill unsupported">Unsupported</span>
+            </div>
+          </div>
+          <div class="section-card applied-review-card" id="appliedReviewCard" style="display:none">
+            <div class="card-header">
+              <h3>Applied Draft Review</h3>
+              <div class="header-actions" id="appliedReviewHeaderActions"></div>
+            </div>
+            <div class="card-body" id="appliedReviewContent">
+              <p class="empty-state">Apply your chosen edits, then run a review to compare the accepted draft against the original CV.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="results-workspace" id="resultsWorkspace">
+          <div class="results-tabs">
+            <div class="results-tab-group" data-group="review">
+              <span class="results-tab-label">Review</span>
+              <button class="tab-btn active" data-tab="sections">Section Review</button>
+              <button class="tab-btn" data-tab="changes">Changes <span class="tab-count" id="changesCount">0</span></button>
+              <button class="tab-btn" data-tab="corpus">Vault Matches</button>
+            </div>
+            <div class="results-tab-group utility" data-group="studio">
+              <span class="results-tab-label">Studio</span>
+              <button class="tab-btn utility" data-tab="latex">LaTeX Studio</button>
+              <button class="tab-btn utility" data-tab="coverletter">Cover Letter</button>
+              <button class="tab-btn utility" data-tab="interview">Interview Prep</button>
+              <button class="tab-btn utility" data-tab="meta">Details</button>
+            </div>
+          </div>
+
+          <!-- Tab: Section Review -->
+          <div class="tab-panel active" id="tab-sections">
+            <div class="section-card"><div class="card-body" id="sectionReview"><p class="empty-state">Loading...</p></div></div>
+          </div>
+
+          <!-- Tab: Changes -->
+          <div class="tab-panel" id="tab-changes">
+            <div class="split-pane">
+              <div class="split-pane-left">
+                <div class="section-card">
+                  <div class="card-header">
+                    <div>
+                      <h3>Review Queue</h3>
+                      <p class="field-hint change-queue-hint">Nothing is accepted by default. Review one suggestion at a time and click Accept to include it in the draft.</p>
+                    </div>
+                    <div class="filter-pills" id="changeFilters">
+                      <button class="pill active" data-filter="all">All</button>
+                      <button class="pill pill-critical" data-filter="critical">Critical</button>
+                      <button class="pill pill-recommended" data-filter="recommended">Recommended</button>
+                      <button class="pill pill-optional" data-filter="optional">Optional</button>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div class="change-queue-summary" id="changesQueueSummary"></div>
+                    <div id="changesList"></div>
+                  </div>
+                </div>
+                <div class="section-card" id="assumptionsCard" style="display:none">
+                  <div class="card-header"><h3>⚠ Assumptions to Review</h3></div>
+                  <div class="card-body" id="assumptionsList"></div>
+                </div>
+                <div class="apply-bar" id="applyBar" style="display:none">
+                  <span id="applyCount">0 reviewed</span>
+                  <button class="btn btn-secondary" id="acceptAll">Accept Remaining</button>
+                  <button class="btn btn-ghost" id="rejectAll">Keep Remaining</button>
+                  <button class="btn btn-primary" id="reviewAppliedCv">Review Accepted Draft</button>
+                </div>
+              </div>
+
+              <div class="split-pane-right">
+                <div class="review-focus-shell" id="latexPreviewContainer">
+                  <div class="review-focus-header">
+                    <div>
+                      <div class="review-focus-kicker">Focused Suggestion</div>
+                      <h3 id="changeReviewTitle">Review Queue</h3>
+                      <div class="preview-panel-subtitle" id="changeReviewSubtitle">Pick a change from the queue. Changes are highlighted in the LaTeX source below.</div>
+                    </div>
+                  </div>
+                  <div class="review-focus-body" id="changeReviewDetail">
+                    <p class="empty-state">Suggested bullet changes will appear here with a side-by-side red/green diff.</p>
+                  </div>
+                  <div class="review-focus-footer" id="changeReviewActions"></div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: Vault Matches -->
+          <div class="tab-panel" id="tab-corpus">
+            <div class="section-card"><div class="card-header"><h3 id="vaultMatchesHeading">Best Vault Matches</h3></div><div class="card-body" id="corpusList"><p class="empty-state">Add saved experience to your profile to get grounded suggestions.</p></div></div>
+            <div class="section-card"><div class="card-header"><h3 id="manualSuggestionsHeading">Additional Suggestions</h3></div><div class="card-body" id="manualSuggestions"><p class="empty-state">No suggestions.</p></div></div>
+          </div>
+
+          <!-- Tab: Edited LaTeX -->
+          <div class="tab-panel" id="tab-latex">
+            <div class="section-card">
+              <div class="card-header">
+                <h3>LaTeX Studio</h3>
+                <div class="header-actions">
+                  <button class="btn btn-sm btn-ghost" id="resetLatexEditor">Reset</button>
+
+                  <button class="btn btn-sm btn-ghost" id="copyLatex">Copy</button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="latex-studio">
+                  <div class="latex-editor-panel">
+                    <div class="latex-studio-meta">
+                      <span class="meta-pill" id="latexEditorState">Synced</span>
+                      <span class="field-hint" id="latexCompileStatus">Web Ready — Live LaTeX Editor</span>
+                    </div>
+                    <div class="draft-metrics" id="latexDraftMetrics"></div>
+                    <div class="field-hint draft-missing" id="latexDraftMissing"></div>
+                    <textarea id="latexEditor" class="textarea code latex-editor" spellcheck="false" placeholder="Generated LaTeX will appear here..."></textarea>
+                    <div class="latex-diff-readout">
+                      <div class="field-label">Reference Diff</div>
+                      <pre class="code-block latex-diff-block" id="editedLatexPre"></pre>
+                    </div>
+                    <div class="latex-diff-readout">
+                      <div class="field-label">Accepted Change Stack</div>
+                      <div id="acceptedChangeStack"><p class="empty-state">Approved changes will appear here in a GitHub-style diff stack.</p></div>
+                    </div>
+                  </div>
+                  <div class="latex-preview-panel">
+                    <div class="field-label">Reference Preview (Summary)</div>
+                    <div id="latexPreview" class="latex-preview-container"></div>
+                    <div class="field-label">Full LaTeX Source (Read-only)</div>
+                    <textarea id="compiledPdfFrame" class="textarea code compiled-pdf-frame" style="height: 400px;" readonly title="Full LaTeX source preview"></textarea>
+                    <div id="compiledPdfEmpty" class="empty-state" style="display:none">Full LaTeX source will appear here for final review.</div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: Cover Letter -->
+          <div class="tab-panel" id="tab-coverletter">
+            <div class="section-card">
+              <div class="card-header"><h3>AI-Generated Cover Letter</h3><div class="header-actions"><button class="btn btn-sm btn-primary" id="genCoverLetter">Generate</button><button class="btn btn-sm btn-ghost" id="copyCoverLetterLatex" style="display:none">Copy LaTeX</button><button class="btn btn-sm btn-ghost" id="downloadCoverLetterTex" style="display:none">Download .tex</button></div></div>
+
+              <div class="card-body">
+                <label class="field-label" for="coverLetterGuidance">User Story / Objectives</label>
+                <textarea id="coverLetterGuidance" class="textarea" rows="4" placeholder="Optional: describe the story you want emphasized, the kind of role transition you are making, or the objectives this letter should reinforce."></textarea>
+                <p class="field-hint">Used as a framing lens for the cover letter only. It should guide emphasis, not invent claims.</p>
+                <div class="cover-letter-settings-grid">
+                  <div>
+                    <label class="field-label" for="coverLetterSenderName">Sender Name</label>
+                    <input id="coverLetterSenderName" class="input" placeholder="Your full name">
+                  </div>
+                  <div>
+                    <label class="field-label" for="coverLetterSenderEmail">Email</label>
+                    <input id="coverLetterSenderEmail" class="input" placeholder="you@example.com">
+                  </div>
+                  <div>
+                    <label class="field-label" for="coverLetterSenderPhone">Phone</label>
+                    <input id="coverLetterSenderPhone" class="input" placeholder="+1 555 555 5555">
+                  </div>
+                  <div>
+                    <label class="field-label" for="coverLetterSenderLinkedInUrl">LinkedIn URL</label>
+                    <input id="coverLetterSenderLinkedInUrl" class="input" placeholder="https://www.linkedin.com/in/your-profile">
+                  </div>
+                  <div>
+                    <label class="field-label" for="coverLetterSenderLinkedInLabel">LinkedIn Label</label>
+                    <input id="coverLetterSenderLinkedInLabel" class="input" placeholder="Your LinkedIn label">
+                  </div>
+                  <div>
+                    <label class="field-label" for="coverLetterSenderLocation">Sender Location</label>
+                    <input id="coverLetterSenderLocation" class="input" placeholder="City, Country">
+                  </div>
+                  <div>
+                    <label class="field-label" for="coverLetterRecipientName">Recipient Name</label>
+                    <input id="coverLetterRecipientName" class="input" placeholder="Hiring Manager">
+                  </div>
+                  <div>
+                    <label class="field-label" for="coverLetterRecipientLocation">Recipient Location</label>
+                    <input id="coverLetterRecipientLocation" class="input" placeholder="City, Country">
+                  </div>
+                  <div class="cover-letter-settings-span">
+                    <label class="field-label" for="coverLetterSignatureUpload">Signature Upload <span class="tag">optional</span></label>
+                    <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
+                      <input id="coverLetterSignatureUpload" class="input" type="file" accept=".png,.jpg,.jpeg,.pdf">
+                      <button class="btn btn-sm btn-ghost" id="clearCoverLetterSignatureUpload" type="button">Remove Upload</button>
+                    </div>
+                    <p class="field-hint" id="coverLetterSignatureStatus">No signature image selected. Leave both options blank to keep the typed signature only.</p>
+                  </div>
+                  <div class="cover-letter-settings-span">
+                    <label class="field-label" for="coverLetterSignaturePath">Signature Image Path <span class="tag">optional</span></label>
+                    <input id="coverLetterSignaturePath" class="input" placeholder="D:\path\to\signature.png">
+                    <p class="field-hint">Manual fallback for signature image inclusion in the LaTeX source.</p>
+                  </div>
+                </div>
+                <div id="coverLetterContent" class="cover-letter-status"><p class="empty-state">Generate strings to produce the LaTeX source for this cover letter.</p></div>
+                <div class="cover-letter-output-grid">
+                  <div>
+                    <div class="field-label">Generated Cover Letter LaTeX</div>
+                    <pre id="coverLetterLatexPre" class="code-block cover-letter-latex-block">No cover letter LaTeX generated yet.</pre>
+                  </div>
+                  <div>
+                    <div class="field-label">Cover Letter LaTeX Preview</div>
+                    <textarea id="coverLetterPdfFrame" class="textarea code compiled-pdf-frame cover-letter-pdf-frame" style="height: 400px;" readonly title="Cover letter LaTeX preview"></textarea>
+                    <div id="coverLetterPdfEmpty" class="empty-state" style="display:none">Generate the cover letter to preview the LaTeX here.</div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: Interview Prep -->
+          <div class="tab-panel" id="tab-interview">
+            <div class="section-card">
+              <div class="card-header"><h3>Interview Preparation</h3><div class="header-actions"><button class="btn btn-sm btn-primary" id="genInterview">Generate</button></div></div>
+              <div class="card-body" id="interviewContent"><p class="empty-state">Click Generate to get targeted interview prep based on this job.</p></div>
+            </div>
+          </div>
+
+          <!-- Tab: Details -->
+          <div class="tab-panel" id="tab-meta">
+            <div class="section-card"><div class="card-header"><h3>Parsed Requirements</h3></div><div class="card-body"><pre class="code-block" id="parsedReqPre"></pre></div></div>
+            <div class="section-card"><div class="card-header"><h3>Quality Metrics</h3></div><div class="card-body" id="runMetrics"><p class="empty-state">No metrics yet.</p></div></div>
+            <div class="section-card"><div class="card-header"><h3>Priority Gaps</h3></div><div class="card-body" id="priorityGapsList"><p class="empty-state">No ATS gap analysis yet.</p></div></div>
+            <div class="section-card"><div class="card-header"><h3>Rewrite Anchors</h3></div><div class="card-body" id="evidenceCandidatesList"><p class="empty-state">No rewrite anchors yet.</p></div></div>
+            <div class="section-card"><div class="card-header"><h3>Token Usage</h3></div><div class="card-body" id="tokenUsage"></div></div>
+            <div class="section-card"><div class="card-header"><h3>Warnings</h3></div><div class="card-body" id="warningsList"><p class="empty-state">None</p></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Vault ── -->
+    <section class="view" id="view-vault">
+      <div class="view-header"><h1>Vault</h1><p class="subtitle">Save, refine, and reuse proof that should outlast any one job application.</p></div>
+      <div class="vault-shell">
+        <aside class="section-card vault-rail">
+          <div class="card-header"><h3>Filters</h3></div>
+          <div class="card-body">
+            <input id="vaultSearch" class="input" placeholder="Search saved experience...">
+            <select id="vaultProfileFilter" class="select">
+              <option value="">All Profiles</option>
+            </select>
+            <select id="vaultStatusFilter" class="select">
+              <option value="">All Statuses</option>
+              <option value="verified">Verified Fact</option>
+              <option value="grounded">Grounded Suggestion</option>
+              <option value="review">Needs Review</option>
+              <option value="resume-ready">Resume-Ready</option>
+            </select>
+            <input id="vaultTagFilter" class="input" placeholder="Filter by tag">
+            <div class="divider-text">Suggested Genres</div>
+            <div id="vaultSuggestedGenres"><p class="empty-state">Save more experience to unlock genre suggestions.</p></div>
+          </div>
+        </aside>
+        <section class="section-card vault-stream">
+          <div class="card-header"><h3>Saved Experience</h3></div>
+          <div class="card-body">
+            <div class="vault-capture">
+              <select id="vaultQuickProfile" class="select"><option value="">Choose profile for capture</option></select>
+              <input id="vaultQuickTitle" class="input" placeholder="Quick capture title">
+              <div class="form-row">
+                <input id="vaultQuickTag" class="input" placeholder="Tag">
+                <select id="vaultQuickSection" class="select">
+                  <option value="">Target section</option>
+                  <option value="summary">Summary</option>
+                  <option value="experience">Experience</option>
+                  <option value="projects">Projects</option>
+                  <option value="skills">Skills</option>
+                  <option value="education">Education</option>
+                  <option value="leadership">Leadership</option>
+                  <option value="research">Research</option>
+                  <option value="awards">Awards</option>
+                </select>
+                <select id="vaultQuickStatus" class="select">
+                  <option value="grounded">Grounded Suggestion</option>
+                  <option value="verified">Verified Fact</option>
+                  <option value="review">Needs Review</option>
+                  <option value="resume-ready">Resume-Ready</option>
+                </select>
+              </div>
+              <textarea id="vaultQuickText" class="textarea" rows="3" placeholder="Capture proof, metrics, or a reusable bullet..."></textarea>
+              <button class="btn btn-primary" id="vaultQuickSave">Save to Vault</button>
+            </div>
+            <div id="vaultList"><p class="empty-state">No saved experience yet. Capture reusable proof from your background.</p></div>
+          </div>
+        </section>
+        <aside class="section-card vault-detail">
+          <div class="card-header"><h3>Quick Edit</h3></div>
+          <div class="card-body" id="vaultDetail">
+            <p class="empty-state">Select a vault item to edit title, tags, proof state, and preferred bullet.</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ── Genres ── -->
+    <section class="view" id="view-genres">
+      <div class="view-header"><h1>Genres</h1><p class="subtitle">Create reusable strategy lenses so you stop re-deciding what to emphasize.</p></div>
+      <div class="genre-grid">
+        <div class="section-card">
+          <div class="card-header"><h3>Create / Edit Genre</h3></div>
+          <div class="card-body">
+            <input id="genreName" class="input" placeholder="Genre name (e.g. ML / AI Engineering)">
+            <textarea id="genreDescription" class="textarea" rows="3" placeholder="What direction is this genre for?"></textarea>
+            <input id="genreFocusTags" class="input" placeholder="Focus tags (comma separated)">
+            <input id="genrePreferredSignals" class="input" placeholder="Preferred signals (comma separated)">
+            <input id="genreDeEmphasizedSignals" class="input" placeholder="De-emphasized signals (comma separated)">
+            <input type="hidden" id="editGenreId" value="">
+            <div class="form-row" style="margin-top:0.8rem">
+              <button class="btn btn-primary" id="saveGenre">Save Genre</button>
+              <button class="btn btn-ghost" id="cancelGenreEdit" style="display:none">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <div class="section-card">
+          <div class="card-header"><h3>Suggested Directions</h3></div>
+          <div class="card-body" id="genreSuggestions"><p class="empty-state">Save experience with tags to generate starter genres.</p></div>
+        </div>
+      </div>
+      <div class="section-card"><div class="card-header"><h3 id="savedGenresHeading">Saved Genres</h3></div><div class="card-body" id="savedGenres"><p class="empty-state">No genres yet.</p></div></div>
+    </section>
+
+    <!-- ── Profiles ── -->
+    <section class="view" id="view-profiles">
+      <div class="view-header"><h1>Profiles</h1><p class="subtitle">Manage your base LaTeX templates, linked genres, and preferred reusable proof.</p></div>
+      <div class="section-card">
+        <div class="card-header"><h3>Create / Edit Profile</h3></div>
+        <div class="card-body">
+          <input id="profileName" class="input" placeholder="Profile name (e.g. SWE CV)">
+          <label class="field-label">LaTeX CV</label>
+          <div class="file-upload-area" id="latexUploadArea"><p>📄 Drag & drop .tex file or click</p><input type="file" id="latexFileInput" accept=".tex" hidden></div>
+          <textarea id="profileLatex" class="textarea code" rows="6" placeholder="Or paste LaTeX here..."></textarea>
+          <label class="field-label">Import Saved Experience <span class="tag">optional</span></label>
+          <p class="field-hint">Profiles should stay template-focused. Use this only to seed the Vault quickly from an existing CV.</p>
+          <div id="storiesList" class="stories-list"></div>
+          <div class="form-row"><input id="storyTag" class="input" placeholder="Tag (ml, leadership...)"><input id="storyText" class="input input-wide" placeholder="Describe the reusable proof..."><button class="btn btn-sm btn-secondary" id="addStory">+</button></div>
+          <input type="hidden" id="editProfileId" value="">
+          <div class="form-row" style="margin-top:0.8rem"><button class="btn btn-primary" id="saveProfile">Save Profile</button><button class="btn btn-ghost" id="cancelEdit" style="display:none">Cancel</button></div>
+        </div>
+      </div>
+      <div class="section-card"><div class="card-header"><h3 id="savedProfilesHeading">Saved Profiles</h3></div><div class="card-body" id="savedProfiles"><p class="empty-state">No profiles yet.</p></div></div>
+    </section>
+
+    <!-- ── Runs ── -->
+    <section class="view" id="view-history">
+      <div class="view-header"><h1>Runs</h1><p class="subtitle">Review outcomes, compare sessions, and reuse what works.</p></div>
+      <div class="section-card">
+        <div class="card-header"><h3>Search</h3></div>
+        <div class="card-body">
+          <div class="form-row">
+            <input id="historySearch" class="input input-wide" placeholder="Search by company, title, or profile...">
+            <select id="historyGenreFilter" class="select">
+              <option value="">All Genres</option>
+            </select>
+            <select id="historyOutcomeFilter" class="select">
+              <option value="">All Outcomes</option>
+              <option value="applied">Applied</option>
+              <option value="interview">Interview</option>
+              <option value="offer">Offer</option>
+              <option value="rejected">Rejected</option>
+              <option value="none">No Outcome</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="section-card"><div class="card-header"><h3 id="allSessionsHeading">All Sessions</h3></div><div class="card-body" id="allSessions"><p class="empty-state">No sessions yet.</p></div></div>
+    </section>
+  </main>
+
+  <div id="toasts"></div>
+  <script src="app.js"></script>
+</body>
+</html>
